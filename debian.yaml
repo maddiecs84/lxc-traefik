@@ -132,6 +132,8 @@ packages:
     - openssh-server
     - wget
     - ca-certificates
+    - keepalived
+    - libipset13
     action: install
 
   - packages:
