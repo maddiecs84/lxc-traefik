@@ -1,0 +1,234 @@
+image:
+  distribution: debian
+  release: bookworm
+  description: |-
+    Debian {{ image.release }} {{ image.architecture }}
+
+source:
+  downloader: debootstrap
+  same_as: gutsy
+  url: http://deb.debian.org/debian
+  keyserver: keyserver.ubuntu.com
+  keys:
+  - 0x126C0D24BD8A2942CC7DF8AC7638D0442B90D010
+  - 0xA1BD8E9D78F7FE5C3E65D8AF8B48AD6246925553
+  - 0x6D33866EDD8FFA41C0143AEDDCC9EFBF77E11517
+  - 0x80D15823B7FD1561F9F7BCDDDC30D7C23CBBABEE
+  - 0xF8D2585B8783D481
+
+targets:
+  lxc:
+    create_message: |-
+      You just created an {{ image.description }} container.
+
+      To enable SSH, run: apt install openssh-server
+      No default root or user password are set by LXC.
+    config:
+    - type: all
+      before: 5
+      content: |-
+        lxc.include = LXC_TEMPLATE_CONFIG/ubuntu.common.conf
+
+    - type: user
+      before: 5
+      content: |-
+        lxc.include = LXC_TEMPLATE_CONFIG/ubuntu.userns.conf
+
+    - type: all
+      after: 4
+      content: |-
+        lxc.include = LXC_TEMPLATE_CONFIG/common.conf
+
+    - type: user
+      after: 4
+      content: |-
+        lxc.include = LXC_TEMPLATE_CONFIG/userns.conf
+
+    - type: all
+      content: |-
+        lxc.arch = {{ image.architecture_personality }}
+
+files:
+- path: /etc/hostname
+  generator: hostname
+
+- path: /etc/hosts
+  generator: hosts
+
+- path: /etc/resolvconf/resolv.conf.d/original
+  generator: remove
+
+- path: /etc/resolvconf/resolv.conf.d/tail
+  generator: remove
+
+- path: /etc/machine-id
+  generator: dump
+
+- path: /etc/user/profile
+  generator: copy
+  source: /etc/profile
+
+- path: /var/lib/dbus/machine-id
+  generator: remove
+
+- name: meta-data
+  generator: cloud-init
+  variants:
+  - cloud
+
+- name: network-config
+  generator: cloud-init
+  variants:
+  - cloud
+
+- name: user-data
+  generator: cloud-init
+  variants:
+  - cloud
+
+- name: vendor-data
+  generator: cloud-init
+  variants:
+  - cloud
+
+- path: /etc/traefik/traefik.yaml
+  generator: dump
+  content: |-
+    
+
+- path: /etc/systemd/system/traefik.service
+  generator: dump
+  content: |-
+    [Unit]
+    Description=Traefik
+    After=network-online.target
+    Wants=network-online.target systemd-networkd-wait-online.service
+
+    [Service]
+    Restart=on-abnormal
+    User=traefik
+    Group=traefik
+    ExecStart=/usr/local/bin/traefik --configfile=/etc/traefik/traefik.yaml
+    PrivateTmp=true
+
+    PrivateDevices=false
+    ProtectHome=true
+    ProtectSystem=full
+    ReadWriteDirectories=/etc/traefik/acme
+    CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+    AmbientCapabilities=CAP_NET_BIND_SERVICE
+    NoNewPrivileges=true
+
+    [Install]
+    WantedBy=multi-user.target
+
+packages:
+  manager: apt
+  update: true
+  cleanup: true
+  sets:
+  - packages:
+    - openssh-client
+    - openssh-server
+    - wget
+    - ca-certificates
+    action: install
+
+  - packages:
+    - cloud-init
+    action: install
+    variants:
+    - cloud
+
+  repositories:
+  - name: sources.list
+    url: |-
+      deb http://deb.debian.org/debian {{ image.release }} main
+      deb http://security.debian.org/debian-security {{ image.release }}-security/updates main
+    architectures:
+    - x86_64
+    - amd64
+    - arm64
+
+actions:
+- trigger: post-unpack
+  action: |-
+    #!/bin/sh
+    apt install wget ca-certificates -y
+    install -d /usr/share/traefik
+    wget -O /usr/share/traefik/traefik.tar.gz https://github.com/traefik/traefik/releases/download/v2.10.5/traefik_v2.10.5_linux_amd64.tar.gz
+  architectures:
+    - x86_64
+    - amd64
+
+- trigger: post-unpack
+  action: |-
+    #!/bin/sh
+    apt install wget ca-certificates -y
+    install -d /usr/share/traefik
+    wget -O /usr/share/traefik/traefik.tar.gz https://github.com/traefik/traefik/releases/download/v2.10.5/traefik_v2.10.5_linux_arm64.tar.gz
+  architectures:
+    - arm64
+
+- trigger: post-packages
+  action: |-
+    #!/bin/sh
+    set -eux
+
+    systemctl enable systemd-networkd
+  releases:
+  - bookworm
+
+# Follows setup in https://gist.github.com/ubergesundheit/7c9d875befc2d7bfd0bf43d8b3862d85
+- trigger: post-packages
+  action: |-
+    #!/bin/sh
+    set -eux
+
+    mkdir -p /opt/traefik
+    tar -xvzf /usr/share/traefik/traefik.tar.gz -C /opt/traefik
+    rm /usr/share/traefik/traefik.tar.gz
+
+    cp /opt/traefik/traefik /usr/local/bin
+    chown root:root /usr/local/bin/traefik
+    chmod 755 /usr/local/bin/traefik
+
+    setcap 'cap_net_bind_service=+ep' /usr/local/bin/traefik
+
+    groupadd -g 321 traefik
+    useradd \
+      -g traefik --no-user-group \
+      --home-dir /var/www --no-create-home \
+      --shell /usr/sbin/nologin \
+      --system --uid 321 traefik
+
+    mkdir /etc/traefik
+    mkdir /etc/traefik/acme
+    chown -R root:root /etc/traefik
+    chown -R traefik:traefik /etc/traefik/acme
+  releases:
+  - bookworm
+
+- trigger: post-packages
+  action: |-
+    #!/bin/sh
+    set -eux
+
+    # Cleanup underlying /run
+    mount -o bind / /mnt
+    rm -rf /mnt/run/*
+    umount /mnt
+
+    # Cleanup temporary shadow paths
+    rm /etc/*-
+
+- trigger: post-files
+  action: |-
+    #!/bin/sh
+    set -eux
+
+    chown root:root /etc/traefik/traefik.yaml
+    chmod 644 /etc/traefik/traefik.yaml
+
+mappings:
+  architecture_map: debian
