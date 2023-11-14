@@ -94,6 +94,11 @@ files:
 - path: /etc/traefik/traefik.yaml
   generator: dump
   content: |-
+
+
+- path: /etc/traefik/.env
+  generator: dump
+  content: |-
     
 
 - path: /etc/systemd/system/traefik.service
@@ -108,6 +113,7 @@ files:
     Restart=on-abnormal
     User=traefik
     Group=traefik
+    EnvironmentFile=/etc/traefik/.env
     ExecStart=/usr/local/bin/traefik --configfile=/etc/traefik/traefik.yaml
     PrivateTmp=true
 
