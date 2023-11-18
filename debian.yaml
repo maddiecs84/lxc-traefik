@@ -174,6 +174,7 @@ packages:
     - ca-certificates
     - keepalived
     - libipset13
+    - promtail
     action: install
 
   - packages:
@@ -206,30 +207,14 @@ actions:
 - trigger: post-unpack
   action: |-
     #!/bin/sh
-    apt install wget ca-certificates -y
-    install -d /usr/share/traefik
-    wget -O /usr/share/traefik/traefik.tar.gz https://github.com/traefik/traefik/releases/download/v2.10.5/traefik_v2.10.5_linux_arm64.tar.gz
-  architectures:
-    - arm64
-
-- trigger: post-unpack
-  action: |-
-    #!/bin/sh
-    apt install wget ca-certificates -y
-    wget https://github.com/grafana/loki/releases/download/v2.8.6/promtail_2.8.6_amd64.deb
-    dpkg -i promtail_2.8.6_amd64
+    apt update
+    apt install wget gpg ca-certificates -y
+    mkdir -p /etc/apt/keyrings/
+    wget -q -O - https://apt.grafana.com/gpg.key | gpg --dearmor > /etc/apt/keyrings/grafana.gpg
+    echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" | tee /etc/apt/sources.list.d/grafana.list
   architectures:
     - x86_64
     - amd64
-
-- trigger: post-unpack
-  action: |-
-    #!/bin/sh
-    apt install wget ca-certificates -y
-    wget https://github.com/grafana/loki/releases/download/v2.8.6/promtail_2.8.6_arm64.deb
-    dpkg -i promtail_2.8.6_arm64
-  architectures:
-    - arm64
 
 - trigger: post-packages
   action: |-
