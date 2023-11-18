@@ -185,7 +185,8 @@ actions:
     wget https://github.com/grafana/loki/releases/download/v2.8.6/promtail_2.8.6_amd64.deb
     dpkg -i promtail_2.8.6_amd64
   architectures:
-    - arm64
+    - x86_64
+    - amd64
 
 - trigger: post-unpack
   action: |-
