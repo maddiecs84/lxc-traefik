@@ -233,6 +233,11 @@ actions:
     mkdir /etc/traefik/acme
     chown -R root:root /etc/traefik
     chown -R traefik:traefik /etc/traefik/acme
+
+    touch /var/log/traefik.log
+    touch /var/log/access.log
+    chown traefik:traefik /var/log/traefik.log
+    chown traefik:traefik /var/log/access.log
   releases:
   - bookworm
 
