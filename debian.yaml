@@ -150,6 +150,18 @@ files:
           job: varlogs
           __path__: /var/log/*/*log
 
+- path: /etc/traefik/traefik.yaml
+  generator: dump
+  content: |-
+    log:
+      filePath: "/var/log/traefik/traefik.log"
+      format: json
+      level: INFO
+
+    accessLog:
+      filePath: "/var/log/traefik/access.log"
+      format: json
+
 packages:
   manager: apt
   update: true
