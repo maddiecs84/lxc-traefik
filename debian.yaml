@@ -128,6 +128,28 @@ files:
     [Install]
     WantedBy=multi-user.target
 
+- path: /etc/promtail/config.yml
+  generator: dump
+  content: |-
+    server:
+      http_listen_port: 9080
+      grpc_listen_port: 0
+
+    positions:
+      filename: /tmp/positions.yaml
+
+    clients:
+      - url: https://localhost:3100/loki/api/v1/push
+
+    scrape_configs:
+    - job_name: system
+      static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: varlogs
+          __path__: /var/log/*/*log
+
 packages:
   manager: apt
   update: true
@@ -234,10 +256,11 @@ actions:
     chown -R root:root /etc/traefik
     chown -R traefik:traefik /etc/traefik/acme
 
-    touch /var/log/traefik.log
-    touch /var/log/access.log
-    chown traefik:traefik /var/log/traefik.log
-    chown traefik:traefik /var/log/access.log
+    mkdir -p /var/log/traefik
+    touch /var/log/traefik/traefik.log
+    touch /var/log/traefik/access.log
+    chown traefik:traefik /var/log/traefik/traefik.log
+    chown traefik:traefik /var/log/traefik/access.log
   releases:
   - bookworm
 
