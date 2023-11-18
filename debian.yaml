@@ -178,6 +178,24 @@ actions:
   architectures:
     - arm64
 
+- trigger: post-unpack
+  action: |-
+    #!/bin/sh
+    apt install wget ca-certificates -y
+    wget https://github.com/grafana/loki/releases/download/v2.8.6/promtail_2.8.6_amd64.deb
+    dpkg -i promtail_2.8.6_amd64
+  architectures:
+    - arm64
+
+- trigger: post-unpack
+  action: |-
+    #!/bin/sh
+    apt install wget ca-certificates -y
+    wget https://github.com/grafana/loki/releases/download/v2.8.6/promtail_2.8.6_arm64.deb
+    dpkg -i promtail_2.8.6_arm64
+  architectures:
+    - arm64
+
 - trigger: post-packages
   action: |-
     #!/bin/sh
