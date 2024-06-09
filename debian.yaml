@@ -128,27 +128,30 @@ files:
     [Install]
     WantedBy=multi-user.target
 
-- path: /etc/promtail/config.yml
+- path: /etc/alloy/config.alloy
   generator: dump
   content: |-
-    server:
-      http_listen_port: 9080
-      grpc_listen_port: 0
+    local.file_match "system" {
+        path_targets = [{
+                __address__ = "localhost",
+                __path__    = "/var/log/*/*log",
+                job         = "varlogs",
+        }]
+    }
 
-    positions:
-      filename: /tmp/positions.yaml
+    loki.source.file "system" {
+            targets               = local.file_match.system.targets
+            forward_to            = [loki.write.default.receiver]
+    }
 
-    clients:
-      - url: https://localhost:3100/loki/api/v1/push
-
-    scrape_configs:
-    - job_name: system
-      static_configs:
-      - targets:
-          - localhost
-        labels:
-          job: varlogs
-          __path__: /var/log/*/*log
+    loki.write "default" {
+        endpoint {
+                url = "http://localhost:3100/loki/api/v1/push"
+        }
+        external_labels = {
+            application_service = "traefik"
+        }
+    }
 
 - path: /etc/traefik/traefik.yaml
   generator: dump
@@ -174,7 +177,7 @@ packages:
     - ca-certificates
     - keepalived
     - libipset13
-    - promtail
+    - alloy
     action: install
 
   - packages:
@@ -230,6 +233,8 @@ actions:
   action: |-
     #!/bin/sh
     set -eux
+
+    systemctl enable alloy.service
 
     mkdir -p /opt/traefik
     tar -xvzf /usr/share/traefik/traefik.tar.gz -C /opt/traefik
